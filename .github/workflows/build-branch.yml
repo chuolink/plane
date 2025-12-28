@@ -46,6 +46,11 @@ env:
   RELEASE_VERSION: ${{ github.event.inputs.releaseVersion }}
   IS_PRERELEASE: ${{ github.event.inputs.isPrerelease }}
   AIO_BUILD: ${{ github.event.inputs.aio_build }}
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  GITOPS_REPO: chuolink/portainer_gitops
+  GITOPS_BRANCH: preview
+  GITOPS_PATH: dev/plane/docker-compose.yml
 
 jobs:
   branch_build_setup:
@@ -140,133 +145,265 @@ jobs:
     name: Build-Push Admin Docker Image
     runs-on: ubuntu-22.04
     needs: [branch_build_setup]
+    permissions:
+      contents: read
+      packages: write
     steps:
-      - name: Admin Build and Push
-        uses: makeplane/actions/build-push@v1.0.0
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to Container Registry
+        uses: docker/login-action@v2
         with:
-          build-release: ${{ needs.branch_build_setup.outputs.build_release }}
-          build-prerelease: ${{ needs.branch_build_setup.outputs.build_prerelease }}
-          release-version: ${{ needs.branch_build_setup.outputs.release_version }}
-          dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
-          dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
-          docker-image-owner: makeplane
-          docker-image-name: ${{ needs.branch_build_setup.outputs.dh_img_admin }}
-          build-context: .
-          dockerfile-path: ./apps/admin/Dockerfile.admin
-          buildx-driver: ${{ needs.branch_build_setup.outputs.gh_buildx_driver }}
-          buildx-version: ${{ needs.branch_build_setup.outputs.gh_buildx_version }}
-          buildx-platforms: ${{ needs.branch_build_setup.outputs.gh_buildx_platforms }}
-          buildx-endpoint: ${{ needs.branch_build_setup.outputs.gh_buildx_endpoint }}
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/plane-admin
+          tags: |
+            type=ref,event=branch
+            type=ref,event=tag
+            type=ref,event=pr
+            type=sha
+
+      - name: Build and push
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: ./apps/admin/Dockerfile.admin
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: ${{ needs.branch_build_setup.outputs.gh_buildx_platforms }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   branch_build_push_web:
     name: Build-Push Web Docker Image
     runs-on: ubuntu-22.04
     needs: [branch_build_setup]
+    permissions:
+      contents: read
+      packages: write
     steps:
-      - name: Web Build and Push
-        uses: makeplane/actions/build-push@v1.0.0
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to Container Registry
+        uses: docker/login-action@v2
         with:
-          build-release: ${{ needs.branch_build_setup.outputs.build_release }}
-          build-prerelease: ${{ needs.branch_build_setup.outputs.build_prerelease }}
-          release-version: ${{ needs.branch_build_setup.outputs.release_version }}
-          dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
-          dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
-          docker-image-owner: makeplane
-          docker-image-name: ${{ needs.branch_build_setup.outputs.dh_img_web }}
-          build-context: .
-          dockerfile-path: ./apps/web/Dockerfile.web
-          buildx-driver: ${{ needs.branch_build_setup.outputs.gh_buildx_driver }}
-          buildx-version: ${{ needs.branch_build_setup.outputs.gh_buildx_version }}
-          buildx-platforms: ${{ needs.branch_build_setup.outputs.gh_buildx_platforms }}
-          buildx-endpoint: ${{ needs.branch_build_setup.outputs.gh_buildx_endpoint }}
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/plane-frontend
+          tags: |
+            type=ref,event=branch
+            type=ref,event=tag
+            type=ref,event=pr
+            type=sha
+
+      - name: Build and push
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: ./apps/web/Dockerfile.web
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: ${{ needs.branch_build_setup.outputs.gh_buildx_platforms }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   branch_build_push_space:
     name: Build-Push Space Docker Image
     runs-on: ubuntu-22.04
     needs: [branch_build_setup]
+    permissions:
+      contents: read
+      packages: write
     steps:
-      - name: Space Build and Push
-        uses: makeplane/actions/build-push@v1.0.0
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to Container Registry
+        uses: docker/login-action@v2
         with:
-          build-release: ${{ needs.branch_build_setup.outputs.build_release }}
-          build-prerelease: ${{ needs.branch_build_setup.outputs.build_prerelease }}
-          release-version: ${{ needs.branch_build_setup.outputs.release_version }}
-          dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
-          dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
-          docker-image-owner: makeplane
-          docker-image-name: ${{ needs.branch_build_setup.outputs.dh_img_space }}
-          build-context: .
-          dockerfile-path: ./apps/space/Dockerfile.space
-          buildx-driver: ${{ needs.branch_build_setup.outputs.gh_buildx_driver }}
-          buildx-version: ${{ needs.branch_build_setup.outputs.gh_buildx_version }}
-          buildx-platforms: ${{ needs.branch_build_setup.outputs.gh_buildx_platforms }}
-          buildx-endpoint: ${{ needs.branch_build_setup.outputs.gh_buildx_endpoint }}
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/plane-space
+          tags: |
+            type=ref,event=branch
+            type=ref,event=tag
+            type=ref,event=pr
+            type=sha
+
+      - name: Build and push
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: ./apps/space/Dockerfile.space
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: ${{ needs.branch_build_setup.outputs.gh_buildx_platforms }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   branch_build_push_live:
     name: Build-Push Live Collaboration Docker Image
     runs-on: ubuntu-22.04
     needs: [branch_build_setup]
+    permissions:
+      contents: read
+      packages: write
     steps:
-      - name: Live Build and Push
-        uses: makeplane/actions/build-push@v1.0.0
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to Container Registry
+        uses: docker/login-action@v2
         with:
-          build-release: ${{ needs.branch_build_setup.outputs.build_release }}
-          build-prerelease: ${{ needs.branch_build_setup.outputs.build_prerelease }}
-          release-version: ${{ needs.branch_build_setup.outputs.release_version }}
-          dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
-          dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
-          docker-image-owner: makeplane
-          docker-image-name: ${{ needs.branch_build_setup.outputs.dh_img_live }}
-          build-context: .
-          dockerfile-path: ./apps/live/Dockerfile.live
-          buildx-driver: ${{ needs.branch_build_setup.outputs.gh_buildx_driver }}
-          buildx-version: ${{ needs.branch_build_setup.outputs.gh_buildx_version }}
-          buildx-platforms: ${{ needs.branch_build_setup.outputs.gh_buildx_platforms }}
-          buildx-endpoint: ${{ needs.branch_build_setup.outputs.gh_buildx_endpoint }}
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/plane-live
+          tags: |
+            type=ref,event=branch
+            type=ref,event=tag
+            type=ref,event=pr
+            type=sha
+
+      - name: Build and push
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: ./apps/live/Dockerfile.live
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: ${{ needs.branch_build_setup.outputs.gh_buildx_platforms }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   branch_build_push_api:
     name: Build-Push API Server Docker Image
     runs-on: ubuntu-22.04
     needs: [branch_build_setup]
+    permissions:
+      contents: read
+      packages: write
     steps:
-      - name: Backend Build and Push
-        uses: makeplane/actions/build-push@v1.0.0
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to Container Registry
+        uses: docker/login-action@v2
         with:
-          build-release: ${{ needs.branch_build_setup.outputs.build_release }}
-          build-prerelease: ${{ needs.branch_build_setup.outputs.build_prerelease }}
-          release-version: ${{ needs.branch_build_setup.outputs.release_version }}
-          dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
-          dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
-          docker-image-owner: makeplane
-          docker-image-name: ${{ needs.branch_build_setup.outputs.dh_img_backend }}
-          build-context: ./apps/api
-          dockerfile-path: ./apps/api/Dockerfile.api
-          buildx-driver: ${{ needs.branch_build_setup.outputs.gh_buildx_driver }}
-          buildx-version: ${{ needs.branch_build_setup.outputs.gh_buildx_version }}
-          buildx-platforms: ${{ needs.branch_build_setup.outputs.gh_buildx_platforms }}
-          buildx-endpoint: ${{ needs.branch_build_setup.outputs.gh_buildx_endpoint }}
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/plane-backend
+          tags: |
+            type=ref,event=branch
+            type=ref,event=tag
+            type=ref,event=pr
+            type=sha
+
+      - name: Build and push
+        uses: docker/build-push-action@v4
+        with:
+          context: ./apps/api
+          file: ./apps/api/Dockerfile.api
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: ${{ needs.branch_build_setup.outputs.gh_buildx_platforms }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   branch_build_push_proxy:
     name: Build-Push Proxy Docker Image
     runs-on: ubuntu-22.04
     needs: [branch_build_setup]
+    permissions:
+      contents: read
+      packages: write
     steps:
-      - name: Proxy Build and Push
-        uses: makeplane/actions/build-push@v1.0.0
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to Container Registry
+        uses: docker/login-action@v2
         with:
-          build-release: ${{ needs.branch_build_setup.outputs.build_release }}
-          build-prerelease: ${{ needs.branch_build_setup.outputs.build_prerelease }}
-          release-version: ${{ needs.branch_build_setup.outputs.release_version }}
-          dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
-          dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
-          docker-image-owner: makeplane
-          docker-image-name: ${{ needs.branch_build_setup.outputs.dh_img_proxy }}
-          build-context: ./apps/proxy
-          dockerfile-path: ./apps/proxy/Dockerfile.ce
-          buildx-driver: ${{ needs.branch_build_setup.outputs.gh_buildx_driver }}
-          buildx-version: ${{ needs.branch_build_setup.outputs.gh_buildx_version }}
-          buildx-platforms: ${{ needs.branch_build_setup.outputs.gh_buildx_platforms }}
-          buildx-endpoint: ${{ needs.branch_build_setup.outputs.gh_buildx_endpoint }}
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/plane-proxy
+          tags: |
+            type=ref,event=branch
+            type=ref,event=tag
+            type=ref,event=pr
+            type=sha
+
+      - name: Build and push
+        uses: docker/build-push-action@v4
+        with:
+          context: ./apps/proxy
+          file: ./apps/proxy/Dockerfile.ce
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: ${{ needs.branch_build_setup.outputs.gh_buildx_platforms }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   branch_build_push_aio:
     if: ${{ needs.branch_build_setup.outputs.aio_build == 'true' }}
@@ -362,6 +499,62 @@ jobs:
             ./deployments/cli/community/docker-compose.yml
             ./deployments/cli/community/variables.env
             ./deployments/swarm/community/swarm.sh
+
+  update_gitops:
+    needs: 
+      - branch_build_setup
+      - branch_build_push_admin
+      - branch_build_push_web
+      - branch_build_push_space
+      - branch_build_push_live
+      - branch_build_push_api
+      - branch_build_push_proxy
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/preview' && github.event_name == 'push'
+    
+    steps:
+    - name: Extract short SHA
+      id: sha
+      run: echo "short_sha=sha-${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+
+    - name: Checkout GitOps repository
+      uses: actions/checkout@v4
+      with:
+        repository: ${{ env.GITOPS_REPO }}
+        token: ${{ secrets.GITOPS_TOKEN }}
+        path: gitops
+
+    - name: Update docker-compose.yml
+      run: |
+        cd gitops
+
+        # Update all image tags in docker-compose.yml
+        sed -i "s|artifacts.plane.so/makeplane/plane-frontend:.*|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/plane-frontend:${{ steps.sha.outputs.short_sha }}|g" ${{ env.GITOPS_PATH }}
+        sed -i "s|artifacts.plane.so/makeplane/plane-space:.*|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/plane-space:${{ steps.sha.outputs.short_sha }}|g" ${{ env.GITOPS_PATH }}
+        sed -i "s|artifacts.plane.so/makeplane/plane-admin:.*|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/plane-admin:${{ steps.sha.outputs.short_sha }}|g" ${{ env.GITOPS_PATH }}
+        sed -i "s|artifacts.plane.so/makeplane/plane-live:.*|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/plane-live:${{ steps.sha.outputs.short_sha }}|g" ${{ env.GITOPS_PATH }}
+        sed -i "s|artifacts.plane.so/makeplane/plane-backend:.*|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/plane-backend:${{ steps.sha.outputs.short_sha }}|g" ${{ env.GITOPS_PATH }}
+
+        # Verify the changes were made
+        echo "Updated ${{ env.GITOPS_PATH }} content:"
+        cat ${{ env.GITOPS_PATH }}
+
+    - name: Commit and push changes
+      run: |
+        cd gitops
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+
+        git add ${{ env.GITOPS_PATH }}
+
+        # Check if there are changes to commit
+        if git diff --staged --quiet; then
+          echo "No changes to commit"
+        else
+          git commit -m "Update plane images to ${{ steps.sha.outputs.short_sha }}"
+          git push
+          echo "Changes committed and pushed successfully"
+        fi
 
   publish_release:
     if: ${{ needs.branch_build_setup.outputs.build_type == 'Release' }}
