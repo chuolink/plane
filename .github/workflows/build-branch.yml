@@ -529,7 +529,7 @@ jobs:
       - branch_build_push_api
       - branch_build_push_proxy
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/preview' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     
     steps:
     - name: Extract short SHA
