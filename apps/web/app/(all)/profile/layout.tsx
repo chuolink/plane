@@ -10,11 +10,8 @@ export default function ProfileSettingsLayout() {
   return (
     <>
       <ProjectsAppPowerKProvider />
-<div className="text-lg">Hello WORLD CHUOLINK</div>
       <AuthenticationWrapper>
-      <div className="text-lg">Hello WORLD CHUOLINK</div>
         <div className="relative flex h-full w-full overflow-hidden rounded-lg border border-subtle">
-        <div className="text-lg">Hello WORLD CHUOLINK</div>
           <ProfileLayoutSidebar />
           <main className="relative flex h-full w-full flex-col overflow-hidden bg-surface-1">
             <div className="h-full w-full overflow-hidden">
