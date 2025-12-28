@@ -643,7 +643,13 @@ jobs:
       - branch_build_push_api
       - branch_build_push_proxy
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.detect_changes.outputs.any_changed == 'true'
+    if: |
+      always() && 
+      github.ref == 'refs/heads/main' && 
+      github.event_name == 'push' && 
+      needs.detect_changes.outputs.any_changed == 'true' &&
+      needs.detect_changes.result == 'success' &&
+      needs.branch_build_setup.result == 'success'
     
     steps:
     - name: Extract short SHA
