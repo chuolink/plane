@@ -547,13 +547,14 @@ jobs:
       run: |
         cd gitops
 
-        # Update all image tags in docker-compose.yml
-        sed -i "s|artifacts.plane.so/makeplane/plane-frontend:.*|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/plane-frontend:${{ steps.sha.outputs.short_sha }}|g" ${{ env.GITOPS_PATH }}
-        sed -i "s|artifacts.plane.so/makeplane/plane-space:.*|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/plane-space:${{ steps.sha.outputs.short_sha }}|g" ${{ env.GITOPS_PATH }}
-        sed -i "s|artifacts.plane.so/makeplane/plane-admin:.*|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/plane-admin:${{ steps.sha.outputs.short_sha }}|g" ${{ env.GITOPS_PATH }}
-        sed -i "s|artifacts.plane.so/makeplane/plane-live:.*|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/plane-live:${{ steps.sha.outputs.short_sha }}|g" ${{ env.GITOPS_PATH }}
-        sed -i "s|artifacts.plane.so/makeplane/plane-backend:.*|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/plane-backend:${{ steps.sha.outputs.short_sha }}|g" ${{ env.GITOPS_PATH }}
-
+        # Update all image tags in docker-compose.yml (handles both old artifacts.plane.so and new ghcr.io patterns)
+        sed -i "s|ghcr.io/chuolink/plane/plane-frontend:.*|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/plane-frontend:${{ steps.sha.outputs.short_sha }}|g" ${{ env.GITOPS_PATH }}
+        sed -i "s|ghcr.io/chuolink/plane/plane-space:.*|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/plane-space:${{ steps.sha.outputs.short_sha }}|g" ${{ env.GITOPS_PATH }}
+        sed -i "s|ghcr.io/chuolink/plane/plane-admin:.*|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/plane-admin:${{ steps.sha.outputs.short_sha }}|g" ${{ env.GITOPS_PATH }}
+        sed -i "s|ghcr.io/chuolink/plane/plane-live:.*|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/plane-live:${{ steps.sha.outputs.short_sha }}|g" ${{ env.GITOPS_PATH }}
+        sed -i "s|ghcr.io/chuolink/plane/plane-backend:.*|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/plane-backend:${{ steps.sha.outputs.short_sha }}|g" ${{ env.GITOPS_PATH }}
+        
+   
         # Verify the changes were made
         echo "Updated ${{ env.GITOPS_PATH }} content:"
         cat ${{ env.GITOPS_PATH }}
