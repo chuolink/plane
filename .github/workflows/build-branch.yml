@@ -140,10 +140,117 @@ jobs:
         name: Checkout Files
         uses: actions/checkout@v4
 
+  detect_changes:
+    name: Detect Changes
+    runs-on: ubuntu-22.04
+    outputs:
+      admin_changed: ${{ steps.changes.outputs.admin }}
+      web_changed: ${{ steps.changes.outputs.web }}
+      space_changed: ${{ steps.changes.outputs.space }}
+      live_changed: ${{ steps.changes.outputs.live }}
+      api_changed: ${{ steps.changes.outputs.api }}
+      proxy_changed: ${{ steps.changes.outputs.proxy }}
+      global_changed: ${{ steps.changes.outputs.global }}
+      any_changed: ${{ steps.changes.outputs.any }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for path changes
+        id: changes
+        run: |
+          # Get list of changed files between HEAD and the previous commit
+          if [ "${{ github.event_name }}" = "push" ]; then
+            CHANGED_FILES=$(git diff --name-only ${{ github.event.before }}..${{ github.sha }})
+          else
+            # For workflow_dispatch, compare with the previous commit
+            CHANGED_FILES=$(git diff --name-only HEAD~1..HEAD)
+          fi
+          
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+          
+          # Check each service path
+          ADMIN_CHANGED=false
+          WEB_CHANGED=false
+          SPACE_CHANGED=false
+          LIVE_CHANGED=false
+          API_CHANGED=false
+          PROXY_CHANGED=false
+          GLOBAL_CHANGED=false
+          
+          # Check if specific paths changed
+          if echo "$CHANGED_FILES" | grep -E "^apps/admin/"; then
+            ADMIN_CHANGED=true
+          fi
+          
+          if echo "$CHANGED_FILES" | grep -E "^apps/web/"; then
+            WEB_CHANGED=true
+          fi
+          
+          if echo "$CHANGED_FILES" | grep -E "^apps/space/"; then
+            SPACE_CHANGED=true
+          fi
+          
+          if echo "$CHANGED_FILES" | grep -E "^apps/live/"; then
+            LIVE_CHANGED=true
+          fi
+          
+          if echo "$CHANGED_FILES" | grep -E "^apps/api/"; then
+            API_CHANGED=true
+          fi
+          
+          if echo "$CHANGED_FILES" | grep -E "^apps/proxy/"; then
+            PROXY_CHANGED=true
+          fi
+          
+          # Check for global changes (shared files, root configs, etc.)
+          if echo "$CHANGED_FILES" | grep -E "^(package\.json|yarn\.lock|turbo\.json|\.github/workflows/|docker-compose|Dockerfile|\.env)"; then
+            GLOBAL_CHANGED=true
+          fi
+          
+          # If global changes detected, build all services
+          if [ "$GLOBAL_CHANGED" = "true" ]; then
+            ADMIN_CHANGED=true
+            WEB_CHANGED=true
+            SPACE_CHANGED=true
+            LIVE_CHANGED=true
+            API_CHANGED=true
+            PROXY_CHANGED=true
+          fi
+          
+          # Check if any service changed
+          ANY_CHANGED=false
+          if [ "$ADMIN_CHANGED" = "true" ] || [ "$WEB_CHANGED" = "true" ] || [ "$SPACE_CHANGED" = "true" ] || [ "$LIVE_CHANGED" = "true" ] || [ "$API_CHANGED" = "true" ] || [ "$PROXY_CHANGED" = "true" ]; then
+            ANY_CHANGED=true
+          fi
+          
+          echo "admin=$ADMIN_CHANGED" >> $GITHUB_OUTPUT
+          echo "web=$WEB_CHANGED" >> $GITHUB_OUTPUT
+          echo "space=$SPACE_CHANGED" >> $GITHUB_OUTPUT
+          echo "live=$LIVE_CHANGED" >> $GITHUB_OUTPUT
+          echo "api=$API_CHANGED" >> $GITHUB_OUTPUT
+          echo "proxy=$PROXY_CHANGED" >> $GITHUB_OUTPUT
+          echo "global=$GLOBAL_CHANGED" >> $GITHUB_OUTPUT
+          echo "any=$ANY_CHANGED" >> $GITHUB_OUTPUT
+          
+          echo "Build decisions:"
+          echo "  Admin: $ADMIN_CHANGED"
+          echo "  Web: $WEB_CHANGED"
+          echo "  Space: $SPACE_CHANGED"
+          echo "  Live: $LIVE_CHANGED"
+          echo "  API: $API_CHANGED"
+          echo "  Proxy: $PROXY_CHANGED"
+          echo "  Global: $GLOBAL_CHANGED"
+          echo "  Any: $ANY_CHANGED"
+
   branch_build_push_admin:
     name: Build-Push Admin Docker Image
     runs-on: ubuntu-22.04
-    needs: [branch_build_setup]
+    needs: [branch_build_setup, detect_changes]
+    if: ${{ needs.detect_changes.outputs.admin_changed == 'true' }}
     permissions:
       contents: read
       packages: write
@@ -187,7 +294,8 @@ jobs:
   branch_build_push_web:
     name: Build-Push Web Docker Image
     runs-on: ubuntu-22.04
-    needs: [branch_build_setup]
+    needs: [branch_build_setup, detect_changes]
+    if: ${{ needs.detect_changes.outputs.web_changed == 'true' }}
     permissions:
       contents: read
       packages: write
@@ -231,7 +339,8 @@ jobs:
   branch_build_push_space:
     name: Build-Push Space Docker Image
     runs-on: ubuntu-22.04
-    needs: [branch_build_setup]
+    needs: [branch_build_setup, detect_changes]
+    if: ${{ needs.detect_changes.outputs.space_changed == 'true' }}
     permissions:
       contents: read
       packages: write
@@ -275,7 +384,8 @@ jobs:
   branch_build_push_live:
     name: Build-Push Live Collaboration Docker Image
     runs-on: ubuntu-22.04
-    needs: [branch_build_setup]
+    needs: [branch_build_setup, detect_changes]
+    if: ${{ needs.detect_changes.outputs.live_changed == 'true' }}
     permissions:
       contents: read
       packages: write
@@ -319,7 +429,8 @@ jobs:
   branch_build_push_api:
     name: Build-Push API Server Docker Image
     runs-on: ubuntu-22.04
-    needs: [branch_build_setup]
+    needs: [branch_build_setup, detect_changes]
+    if: ${{ needs.detect_changes.outputs.api_changed == 'true' }}
     permissions:
       contents: read
       packages: write
@@ -363,7 +474,8 @@ jobs:
   branch_build_push_proxy:
     name: Build-Push Proxy Docker Image
     runs-on: ubuntu-22.04
-    needs: [branch_build_setup]
+    needs: [branch_build_setup, detect_changes]
+    if: ${{ needs.detect_changes.outputs.proxy_changed == 'true' }}
     permissions:
       contents: read
       packages: write
@@ -405,11 +517,12 @@ jobs:
           cache-to: type=gha,mode=max
 
   branch_build_push_aio:
-    if: ${{ needs.branch_build_setup.outputs.aio_build == 'true' }}
+    if: ${{ needs.branch_build_setup.outputs.aio_build == 'true' && needs.detect_changes.outputs.any_changed == 'true' }}
     name: Build-Push AIO Docker Image
     runs-on: ubuntu-22.04
     needs:
       - branch_build_setup
+      - detect_changes
       - branch_build_push_admin
       - branch_build_push_web
       - branch_build_push_space
@@ -522,6 +635,7 @@ jobs:
   update_gitops:
     needs: 
       - branch_build_setup
+      - detect_changes
       - branch_build_push_admin
       - branch_build_push_web
       - branch_build_push_space
@@ -529,7 +643,7 @@ jobs:
       - branch_build_push_api
       - branch_build_push_proxy
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.detect_changes.outputs.any_changed == 'true'
     
     steps:
     - name: Extract short SHA
@@ -546,16 +660,41 @@ jobs:
     - name: Update docker-compose.yml
       run: |
         cd gitops
-
-        # Update all image tags in docker-compose.yml (handles both old artifacts.plane.so and new ghcr.io patterns)
-        sed -i "s|ghcr.io/chuolink/plane/plane-frontend:.*|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/plane-frontend:${{ steps.sha.outputs.short_sha }}|g" ${{ env.GITOPS_PATH }}
-        sed -i "s|ghcr.io/chuolink/plane/plane-space:.*|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/plane-space:${{ steps.sha.outputs.short_sha }}|g" ${{ env.GITOPS_PATH }}
-        sed -i "s|ghcr.io/chuolink/plane/plane-admin:.*|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/plane-admin:${{ steps.sha.outputs.short_sha }}|g" ${{ env.GITOPS_PATH }}
-        sed -i "s|ghcr.io/chuolink/plane/plane-live:.*|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/plane-live:${{ steps.sha.outputs.short_sha }}|g" ${{ env.GITOPS_PATH }}
-        sed -i "s|ghcr.io/chuolink/plane/plane-backend:.*|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/plane-backend:${{ steps.sha.outputs.short_sha }}|g" ${{ env.GITOPS_PATH }}
         
-   
-        # Verify the changes were made
+        echo "Updating images for changed services:"
+        
+        # Only update tags for services that actually changed
+        if [ "${{ needs.detect_changes.outputs.web_changed }}" = "true" ]; then
+          echo "  Updating plane-frontend image..."
+          sed -i "s|ghcr.io/chuolink/plane/plane-frontend:.*|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/plane-frontend:${{ steps.sha.outputs.short_sha }}|g" ${{ env.GITOPS_PATH }}
+        fi
+        
+        if [ "${{ needs.detect_changes.outputs.space_changed }}" = "true" ]; then
+          echo "  Updating plane-space image..."
+          sed -i "s|ghcr.io/chuolink/plane/plane-space:.*|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/plane-space:${{ steps.sha.outputs.short_sha }}|g" ${{ env.GITOPS_PATH }}
+        fi
+        
+        if [ "${{ needs.detect_changes.outputs.admin_changed }}" = "true" ]; then
+          echo "  Updating plane-admin image..."
+          sed -i "s|ghcr.io/chuolink/plane/plane-admin:.*|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/plane-admin:${{ steps.sha.outputs.short_sha }}|g" ${{ env.GITOPS_PATH }}
+        fi
+        
+        if [ "${{ needs.detect_changes.outputs.live_changed }}" = "true" ]; then
+          echo "  Updating plane-live image..."
+          sed -i "s|ghcr.io/chuolink/plane/plane-live:.*|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/plane-live:${{ steps.sha.outputs.short_sha }}|g" ${{ env.GITOPS_PATH }}
+        fi
+        
+        if [ "${{ needs.detect_changes.outputs.api_changed }}" = "true" ]; then
+          echo "  Updating plane-backend image..."
+          sed -i "s|ghcr.io/chuolink/plane/plane-backend:.*|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/plane-backend:${{ steps.sha.outputs.short_sha }}|g" ${{ env.GITOPS_PATH }}
+        fi
+        
+        if [ "${{ needs.detect_changes.outputs.proxy_changed }}" = "true" ]; then
+          echo "  Updating plane-proxy image..."
+          sed -i "s|ghcr.io/chuolink/plane/plane-proxy:.*|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/plane-proxy:${{ steps.sha.outputs.short_sha }}|g" ${{ env.GITOPS_PATH }}
+        fi
+        
+        
         echo "Updated ${{ env.GITOPS_PATH }} content:"
         cat ${{ env.GITOPS_PATH }}
 
@@ -571,7 +710,34 @@ jobs:
         if git diff --staged --quiet; then
           echo "No changes to commit"
         else
-          git commit -m "Update plane images to ${{ steps.sha.outputs.short_sha }}"
+          # Build commit message with changed services
+          COMMIT_MSG="Update plane images to ${{ steps.sha.outputs.short_sha }}"
+          UPDATED_SERVICES=""
+          
+          if [ "${{ needs.detect_changes.outputs.web_changed }}" = "true" ]; then
+            UPDATED_SERVICES="$UPDATED_SERVICES frontend"
+          fi
+          if [ "${{ needs.detect_changes.outputs.space_changed }}" = "true" ]; then
+            UPDATED_SERVICES="$UPDATED_SERVICES space"
+          fi
+          if [ "${{ needs.detect_changes.outputs.admin_changed }}" = "true" ]; then
+            UPDATED_SERVICES="$UPDATED_SERVICES admin"
+          fi
+          if [ "${{ needs.detect_changes.outputs.live_changed }}" = "true" ]; then
+            UPDATED_SERVICES="$UPDATED_SERVICES live"
+          fi
+          if [ "${{ needs.detect_changes.outputs.api_changed }}" = "true" ]; then
+            UPDATED_SERVICES="$UPDATED_SERVICES backend"
+          fi
+          if [ "${{ needs.detect_changes.outputs.proxy_changed }}" = "true" ]; then
+            UPDATED_SERVICES="$UPDATED_SERVICES proxy"
+          fi
+          
+          if [ -n "$UPDATED_SERVICES" ]; then
+            COMMIT_MSG="$COMMIT_MSG - Updated services:$UPDATED_SERVICES"
+          fi
+          
+          git commit -m "$COMMIT_MSG"
           git push
           echo "Changes committed and pushed successfully"
         fi
