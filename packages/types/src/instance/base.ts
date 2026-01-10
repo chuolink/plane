@@ -45,6 +45,7 @@ export interface IInstanceConfig {
   is_github_enabled: boolean;
   is_gitlab_enabled: boolean;
   is_gitea_enabled: boolean;
+  is_oidc_enabled: boolean;
   is_magic_login_enabled: boolean;
   is_email_password_enabled: boolean;
   github_app_name: string | undefined;
@@ -101,4 +102,8 @@ export type IFormattedInstanceConfiguration = {
   [key in TInstanceConfigurationKeys]: string;
 };
 
-export type TLoginMediums = TCoreLoginMediums | TExtendedLoginMediums;
+// Conditional type to support extended login mediums in enterprise edition
+export type TLoginMediums = [TExtendedLoginMediums] extends [never]
+  ? TCoreLoginMediums
+  : // eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
+      TCoreLoginMediums | TExtendedLoginMediums;

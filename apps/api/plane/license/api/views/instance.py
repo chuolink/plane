@@ -61,6 +61,9 @@ class InstanceEndpoint(BaseAPIView):
             LLM_API_KEY,
             IS_INTERCOM_ENABLED,
             INTERCOM_APP_ID,
+            OIDC_ISSUER_URL,
+            OIDC_CLIENT_ID,
+            OIDC_CLIENT_SECRET,
         ) = get_configuration_value(
             [
                 {
@@ -129,6 +132,19 @@ class InstanceEndpoint(BaseAPIView):
                     "key": "INTERCOM_APP_ID",
                     "default": os.environ.get("INTERCOM_APP_ID", ""),
                 },
+                # OIDC settings
+                {
+                    "key": "OIDC_ISSUER_URL",
+                    "default": os.environ.get("OIDC_ISSUER_URL", ""),
+                },
+                {
+                    "key": "OIDC_CLIENT_ID",
+                    "default": os.environ.get("OIDC_CLIENT_ID", ""),
+                },
+                {
+                    "key": "OIDC_CLIENT_SECRET",
+                    "default": os.environ.get("OIDC_CLIENT_SECRET", ""),
+                },
             ]
         )
 
@@ -140,6 +156,7 @@ class InstanceEndpoint(BaseAPIView):
         data["is_github_enabled"] = IS_GITHUB_ENABLED == "1"
         data["is_gitlab_enabled"] = IS_GITLAB_ENABLED == "1"
         data["is_gitea_enabled"] = IS_GITEA_ENABLED == "1"
+        data["is_oidc_enabled"] = bool(OIDC_ISSUER_URL and OIDC_CLIENT_ID and OIDC_CLIENT_SECRET)
         data["is_magic_login_enabled"] = ENABLE_MAGIC_LINK_LOGIN == "1"
         data["is_email_password_enabled"] = ENABLE_EMAIL_PASSWORD == "1"
 
